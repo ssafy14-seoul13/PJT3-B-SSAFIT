@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- Add Video Modal -->
+    <div
+      class="modal fade"
+      id="addVideoModal"
+      tabindex="-1"
+      aria-labelledby="addVideoModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg">
+          <div class="modal-header border-0">
+            <h5 class="modal-title fw-bold" id="addVideoModalLabel">
+              새 운동 영상 등록
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body p-4">
+            <form id="add-video-form">
+              <div class="mb-3">
+                <label for="videoUrl" class="form-label">유튜브 링크</label>
+                <input
+                  type="url"
+                  class="form-control rounded-pill"
+                  id="videoUrl"
+                  placeholder="예: https://www.youtube.com/watch?v=..."
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="videoTitle" class="form-label">영상 제목</label>
+                <input
+                  type="text"
+                  class="form-control rounded-pill"
+                  id="videoTitle"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="videoChannel" class="form-label">채널 이름</label>
+                <input
+                  type="text"
+                  class="form-control rounded-pill"
+                  id="videoChannel"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="videoPart" class="form-label">운동 부위</label>
+                <select
+                  class="form-select rounded-pill"
+                  id="videoPart"
+                  required
+                >
+                  <option value="" disabled selected>부위를 선택하세요</option>
+                  <option value="전신">전신</option>
+                  <option value="상체">상체</option>
+                  <option value="하체">하체</option>
+                  <option value="복부">복부</option>
+                </select>
+              </div>
+              <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-primary rounded-pill">
+                  등록하기
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
