@@ -1,2 +1,310 @@
-# PJT3-B-SSAFIT
-동근, 세빈
+# 🏋️ SSAFIT(운동 영상 추천 및 리뷰 서비스) - 알고리즘 적용 기획서
+
+> **Fitness 영상 플랫폼**은 운동 영상을 효율적으로 관리하고, 사용자 맞춤형 추천과 커뮤니티 기능을 제공하는 서비스입니다.  
+> 본 문서는 **자료구조와 알고리즘 적용 기획서**로, 각 기능별 최적화된 구조와 구현 방식을 설명합니다.
+
+---
+
+## 🗂️ 목차
+
+| 번호 | 데이터 / 기능 | 자료구조 / 적용 알고리즘 | 비고 |
+| --- | --- | --- | --- |
+| **DS-01** | **회원 정보** | `Map` | 사용자 ID를 Key로 하여 회원 정보에 O(1) 시간 복잡도로 접근 |
+| **DS-02** | 영상, 리뷰, 찜, 글 목록 관리 | `ArrayList` | 데이터의 순서를 보장하고, 1:N 관계 및 정렬에 용이 |
+| **Algo-01** | **운동 영상 정보 정렬** | • **병합 정렬**: 부위/인기순 <br> • **힙 정렬**: 리뷰 연관순 <br> • **삽입 정렬**: 리뷰 목록 | 데이터 특성별로 안정성과 효율성을 고려하여 선택 |
+| **Algo-02** | **찜 영상 목록 정렬** | • **선택 정렬** | 데이터 양이 적어 간단하고 직관적인 알고리즘 활용 |
+| **Algo-03** | **영상 검색** | • **퀵 정렬** (색인) <br> • **이진 탐색** (검색) | `ArrayList`의 검색 속도 단점을 보완 |
+| **Algo-04** | **운동 영상 추천** | • 데이터 기반 맞춤형 추천 | `찜 목록`, `리뷰 목록` 데이터를 분석하여 개인화 추천 |
+| **Algo-05** | **커뮤니티 기능** | • **힙 정렬**: 게시글 관리 <br> • **이진 탐색**: 게시글 조회 | 최신/인기순 정렬 및 효율적 검색 기능 제공 |
+
+---
+
+## 1️⃣ 운동 영상 정보 관리 (CRUD)
+
+### 📌 자료구조 적용: `Map` (회원 정보 관리)
+
+- **핵심 데이터:** 회원 정보  
+- **적용 방식:**
+  - 사용자 ID → **Key**  
+  - 회원 객체 → **Value**  
+  - `HashMap`을 이용해 **O(1)** 속도로 조회  
+  - DB 조회 부담을 줄이는 **캐시(Cache)** 역할 수행  
+
+- **이점**
+  - 🚀 빠른 접근 속도 → 데이터 위치를 내부적으로 계산해 수만 명 중 한 명도 즉시 조회 가능  
+  - 🏷️ 가독성 좋은 관리 → 숫자 인덱스가 아닌 의미 있는 키(`user_id_123`)로 데이터 관리  
+
+- **이슈 및 개선**
+  - 🔍 보조 검색 문제 → 오직 하나의 지정된 키로만 검색이 가능하기 때문에 `emailIndexMap` 같은 인덱스 맵 추가  
+  - 🔄 순서 보장 문제 → 데이터를 넣은 순서대로 보장하지 않기 때문에 상황에 따라 `LinkedHashMap` / `TreeMap` 활용  
+
+---
+
+### 📌 자료구조 적용: `ArrayList`
+
+- **핵심 데이터:** 영상 정보, 리뷰 목록  
+- **적용 방식:**
+  - 영상 정보는 `ArrayList`에 저장 → 순서 유지 & O(1) 인덱스 접근  
+  - 1:N 관계 관리 (영상 1개 ↔ 리뷰 N개) → `add()` 메서드를 통한 간편한 추가 
+  - `Collections.sort()` 및 `Comparator`로 다양한 정렬 적용 가능  
+
+### 📌 알고리즘 적용
+### 부위별 / 인기순위별 정렬 → **병합 정렬 (Merge Sort)**
+
+- **서비스 상황**  
+  사용자가 특정 부위(예: 어깨, 허리, 다리)별 운동 영상을 보거나, 인기순위(조회수, 좋아요 수) 기준으로 영상을 보고 싶어 함.  
+  인기 순위가 같은 경우엔, **먼저 등록된 영상(최신 업로드 순)**을 유지하는 것이 중요.  
+
+- **로직 흐름**  
+  1. 영상 목록(ArrayList)을 반으로 나눈다.  
+  2. 각각을 정렬(부위명 or 인기순위 기준)한다.  
+  3. 두 정렬된 목록을 병합한다.  
+  4. **같은 순위의 영상이 있으면 업로드된 순서(등록 순서)를 유지**한다.  
+
+- **결과**  
+  사용자는 "부위별 → 인기순 정렬"처럼 **일관되고 신뢰성 있는 영상 목록**을 볼 수 있음.  
+
+---
+
+### 리뷰 관련 정렬 (관련도 / 중요도) → **힙 정렬 (Heap Sort)**
+
+- **서비스 상황**  
+  영상 상세 페이지에서 "가장 도움이 되는 리뷰"나 "최신 리뷰"를 맨 위에 보여줘야 함.  
+  리뷰는 계속 추가되므로, **우선순위가 즉시 반영**돼야 함.  
+
+- **로직 흐름**  
+  1. 리뷰 데이터를 힙(Heap) 구조로 변환한다.  
+     - 최대 힙이면 **가장 최신 리뷰 or 평점 높은 리뷰**가 루트.  
+     - 최소 힙이면 **낮은 평점 리뷰**가 루트.  
+  2. 루트 값을 꺼내서 리뷰 리스트 최상단에 배치.  
+  3. 새로운 리뷰가 추가될 때마다 힙을 재구성(heapify)해서, **가장 중요한 리뷰가 항상 맨 위에 오도록 보장**.  
+
+- **결과**  
+  사용자는 언제 들어와도 항상 **최신/중요 리뷰가 먼저 보이는 리뷰 목록**을 확인 가능.  
+
+---
+
+### 리뷰 목록 전체 정렬 (최신순) → **삽입 정렬 (Insertion Sort)**
+
+- **서비스 상황**  
+  사용자가 영상을 보고 작성한 리뷰들이 순차적으로 추가됨. 보통 리뷰는 이미 정렬된 목록 끝에 붙음.  
+  새로 들어온 리뷰를 적절한 위치(예: 최신순 or 평점순)에 삽입하면 됨.  
+
+- **로직 흐름**  
+  1. 기존 리뷰 목록은 이미 최신순으로 정렬되어 있음.  
+  2. 새로운 리뷰가 추가되면, 바로 앞 리뷰들과 비교.  
+  3. 자리를 찾을 때까지 앞 리뷰들을 한 칸씩 밀고, 새로운 리뷰를 그 자리에 삽입.  
+  4. 대부분의 경우 **1~2개만 움직이면 끝** → 빠름.  
+
+- **결과**  
+  리뷰는 항상 **최신순으로 깔끔하게 유지**되며, 사용자는 방금 작성한 리뷰가 자연스럽게 목록에 반영된 것을 확인할 수 있음.  
+
+---
+
+## 2️⃣ 찜 영상 목록 정렬
+
+### 📌 자료구조 적용: `ArrayList`
+- 찜 목록을 순서대로 저장  
+- 끝에 추가하는 연산은 O(1)  
+
+### 📌 알고리즘 적용
+### 📌 정렬 알고리즘: `선택 정렬 (Selection Sort)`
+- **서비스 상황**: 사용자가 찜한 영상은 많지 않고, 자주 추가/삭제됨.  
+- **로직**
+  1. 첫 번째 위치에 올 영상을 찾기 위해 전체 목록에서 **가장 인기 높은(또는 오래된/짧은) 영상**을 찾음.  
+  2. 찾은 영상을 현재 위치와 교환.  
+  3. 두 번째 위치에 올 영상을 찾기 위해 나머지 목록에서 같은 과정을 반복.  
+  4. 모든 요소를 정렬할 때까지 반복.  
+- **특징**
+  - 교환 횟수가 최대 n번으로 적음.  
+  - 찜 목록처럼 **소규모 데이터**에서 간단하게 구현 가능.  
+
+---
+
+## 3️⃣ 영상 검색 기능
+
+### 📌 자료구조 적용: `ArrayList + 보조 Map/Set`
+- 기본 데이터: `ArrayList`  
+- 보조 인덱스: `HashMap` → 키워드 기반 O(1) 필터링 가능  
+
+### 📌 알고리즘 적용
+### **퀵 정렬 (Quick Sort)** → 영상 데이터 사전 정렬
+- **서비스 상황**: 제목/크리에이터 기준으로 미리 정렬 → 빠른 검색 가능.  
+- **로직**
+  1. 하나의 기준값(pivot)을 선택.  
+  2. pivot보다 작은 값은 왼쪽, 큰 값은 오른쪽에 분류(partition).  
+  3. 왼쪽 그룹과 오른쪽 그룹을 각각 재귀적으로 같은 방식으로 정렬.  
+  4. 모든 그룹이 정렬되면 전체 목록 완성.  
+- **특징**
+  - 평균 시간 복잡도 O(n log n).  
+  - 실제 환경에서 가장 빠른 정렬 중 하나.  
+
+### **이진 탐색 (Binary Search)** → 정렬된 목록에서 검색
+- **서비스 상황**: 영상 제목 가나다순으로 정렬된 상태에서 특정 제목 검색.  
+- **로직**
+  1. 배열의 가운데(mid) 원소 확인.  
+  2. 찾는 값이 mid보다 작으면 왼쪽, 크면 오른쪽에서 다시 탐색.  
+  3. 값이 일치하면 종료, 없으면 탐색 실패.  
+- **특징**
+  - 시간 복잡도 O(log n).  
+  - 정렬된 ArrayList에 매우 효율적.  
+
+### **HashMap/HashSet 보완** → 키워드 인덱싱
+- **서비스 상황**: 제목 초성이나 특정 키워드 기반 빠른 필터링.  
+- **로직**
+  1. `HashMap`의 key = 키워드 / value = ArrayList 인덱스.  
+  2. 사용자가 검색하면 key 값으로 즉시 매칭된 인덱스 반환.  
+- **특징**
+  - 시간 복잡도 평균 O(1).  
+  - ArrayList의 느린 선형 탐색 문제 해결.  
+
+---
+
+## 4️⃣ 운동 부위별 영상 추천 기능
+
+### 📌 자료구조 적용: `ArrayList`
+- **분석 데이터:** 찜 목록, 리뷰 목록  
+- 연속 메모리 구조로 순차 탐색에 유리  
+
+### 📌 추천 알고리즘
+- **서비스 상황**: 찜 목록, 리뷰 목록, 사용자 신체 정보 기반 추천.  
+- **로직**
+  1. **찜 목록 순회** → 사용자가 많이 선택한 부위/강도/크리에이터 파악.  
+  2. **리뷰 목록 순회** → 찜하지 않았지만 긍정적인 리뷰 남긴 영상 확인.  
+  3. **신체 정보 반영** → 난이도 조절.  
+  4. 분석된 데이터를 바탕으로 **ArrayList에서 해당 조건 충족 영상 우선 출력**.  
+- **특징**
+  - 정렬보다는 **순차 탐색 + 조건 필터링**에 가까움.  
+  - ArrayList는 연속된 메모리 구조라 for-each 순회가 빠름.
+
+```import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+
+public class RecommendationService {
+
+    public class Video {
+    String title;
+    String part; // 운동 부위 (예: "하체", "코어")
+    String difficulty; // 난이도 (예: "초급", "중급")
+    String creator; // 크리에이터 이름
+    double rating; // 평점 (리뷰 목록 분석용)
+
+    public Video(String title, String part, String difficulty, String creator, double rating) {
+        this.title = title;
+        this.part = part;
+        this.difficulty = difficulty;
+        this.creator = creator;
+        this.rating = rating;
+    }
+
+    // getter 메서드들
+    public String getTitle() {
+        return title;
+    }
+
+    public String getPart() {
+        return part;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    public String getCreator() {
+        return creator;
+    }
+
+    public double getRating() {
+        return rating;
+    }
+}
+
+    /**
+     * 사용자의 찜 목록, 리뷰 목록, 신체 정보를 기반으로 가중치를 적용하여 영상을 추천합니다.
+     * @param likedVideos 찜 목록
+     * @param reviewedVideos 리뷰 목록
+     * @param userPhysicalLevel 사용자 신체 수준 (e.g., "초급", "중급")
+     * @return 가중치 순으로 정렬된 추천 영상 목록
+     */
+    public List<Video> recommendVideos(
+            List<Video> likedVideos,
+            List<Video> reviewedVideos,
+            String userPhysicalLevel) {
+
+        Map<Video, Double> videoScores = new HashMap<>();
+
+        // 1. 찜 목록 분석 (가중치: 찜한 영상은 점수 10점 부여)
+        for (Video video : likedVideos) {
+            videoScores.put(video, videoScores.getOrDefault(video, 0.0) + 10.0);
+        }
+
+        // 2. 리뷰 목록 분석 (가중치: 평점에 비례하여 점수 부여)
+        for (Video video : reviewedVideos) {
+            // 평점이 4.0 이상인 경우, 평점 * 2.0을 가중치로 추가
+            if (video.rating >= 4.0) {
+                videoScores.put(video, videoScores.getOrDefault(video, 0.0) + video.rating * 2.0);
+            }
+        }
+        
+        // 3. 사용자 신체 수준 반영 (가중치: 난이도가 일치하면 5점 추가)
+        // 모든 영상에 대해 순회하며 난이도 일치 여부 확인
+        // 예시를 위해 찜 목록과 리뷰 목록을 모두 합친 전체 영상 목록을 가정
+        List<Video> allVideos = new ArrayList<>();
+        allVideos.addAll(likedVideos);
+        allVideos.addAll(reviewedVideos);
+
+        for (Video video : allVideos) {
+            if (video.difficulty.equals(userPhysicalLevel)) {
+                 videoScores.put(video, videoScores.getOrDefault(video, 0.0) + 5.0);
+            }
+        }
+
+        // 4. 점수가 0점인 영상은 추천 목록에서 제외 (최소 점수 기준 설정)
+        // 5. 점수를 기준으로 내림차순 정렬
+        List<Video> recommendedList = new ArrayList<>(videoScores.keySet());
+        
+        // Collections.sort()를 사용하여 점수를 기준으로 내림차순 정렬
+        Collections.sort(recommendedList, new Comparator<Video>() {
+            @Override
+            public int compare(Video v1, Video v2) {
+                return Double.compare(videoScores.get(v2), videoScores.get(v1));
+            }
+        });
+
+        return recommendedList;
+    }
+}
+```
+
+---
+
+## 5️⃣ 커뮤니티 기능
+
+### 📌 자료구조 적용: `ArrayList`
+- 게시글은 `ArrayList`에 저장  
+- 최신순은 역순 조회로 구현 가능  
+
+### 📌 알고리즘 적용
+### **힙 정렬 (Heap Sort)** → 인기 글/최신 글 정렬
+- **서비스 상황**: 좋아요 많은 글, 최신 글을 상위 노출.  
+- **로직**
+  1. 글 목록을 힙(Heap) 구조로 변환 (최대 힙: 좋아요 많은 글이 루트).  
+  2. 루트(가장 인기 있는 글)를 꺼내 상단에 배치.  
+  3. 나머지 데이터를 다시 힙으로 재구성(heapify).  
+  4. 반복하여 정렬된 결과 도출.  
+- **특징**
+  - 새로운 글 추가 시 heapify로 **실시간 인기 순위 반영** 가능.  
+  - 최댓값/최솟값 조회가 O(1).  
+
+### **이진 탐색 (Binary Search)** → 제목/작성자 기반 게시글 검색
+- **서비스 상황**: 게시글이 제목순/작성자순으로 정렬된 경우.  
+- **로직**
+  1. ArrayList에서 가운데 글의 제목을 확인.  
+  2. 찾는 제목과 비교하여 왼쪽/오른쪽 절반으로 탐색 범위를 좁힘.  
+  3. 반복하여 찾으면 반환, 없으면 실패.  
+- **특징**
+  - 게시판 검색 속도를 O(log n)으로 보장.  
